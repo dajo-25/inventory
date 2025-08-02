@@ -1,13 +1,18 @@
-from flask import Flask, jsonify, request, render_template, abort
+from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
-import sqlite3
-import os
+import sqlite3, os
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
-# 1) Cargar token Bearer
-with open('/app/data/bearer.txt', 'r') as f:
+# 1) CORS: permitir Authorization y métodos OPTIONS
+CORS(app, resources={r"/api/*": {
+    "origins": "*",
+    "allow_headers": ["Authorization", "Content-Type"],
+    "methods": ["GET","POST","PUT","DELETE","OPTIONS"]
+}})
+
+# 2) Cargar token Bearer
+with open('/app/data/bearer.txt') as f:
     app.config['BEARER_TOKEN'] = f.read().strip()
 
 DB_PATH = os.environ.get('DB_PATH', '/app/data/db.sqlite')
@@ -15,9 +20,11 @@ conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 conn.row_factory = sqlite3.Row
 cursor = conn.cursor()
 
-# 2) Autenticación global para /api/*
+# 3) Interceptor que salta OPTIONS
 @app.before_request
 def require_bearer_auth():
+    if request.method == 'OPTIONS':
+        return
     if request.path.startswith('/api/'):
         auth = request.headers.get('Authorization', '')
         if not auth.startswith('Bearer '):
