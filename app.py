@@ -8,10 +8,25 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 # Permite todas las rutas, métodos y orígenes. En producción puedes restringir origin a tu dominio.
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
+with open('/app/data/bearer.txt', 'r') as f:
+    app.config['BEARER_TOKEN'] = f.read().strip()
+    
 DB_PATH = os.environ.get('DB_PATH', '/app/data/db.sqlite')
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 conn.row_factory = sqlite3.Row
 cursor = conn.cursor()
+
+
+@app.before_request
+def require_bearer_auth():
+    # Solo protegemos rutas que empiecen por /api/
+    if request.path.startswith('/api/'):
+        auth = request.headers.get('Authorization', '')
+        if not auth.startswith('Bearer '):
+            return jsonify({'error': 'Missing or invalid Authorization header'}), 401
+        token = auth.split(' ', 1)[1]
+        if token != app.config['BEARER_TOKEN']:
+            return jsonify({'error': 'Invalid token'}), 401
 
 # Helpers para mapear filas a JSON en español
 def map_object_row(r):
