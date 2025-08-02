@@ -1,8 +1,13 @@
 from flask import Flask, jsonify, request, render_template
+from flask_cors import CORS
 import sqlite3
 import os
 
+# Inicialización de Flask y CORS
 app = Flask(__name__, static_folder='static', template_folder='templates')
+# Permite todas las rutas, métodos y orígenes. En producción puedes restringir origin a tu dominio.
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+
 DB_PATH = os.environ.get('DB_PATH', '/app/data/db.sqlite')
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 conn.row_factory = sqlite3.Row
@@ -27,7 +32,9 @@ def map_container_row(r):
         'descripcion': r['description']
     }
 
+# ----------------------------
 # API Objetos
+# ----------------------------
 @app.route('/api/objects', methods=['GET'])
 def list_objects():
     q = request.args.get('q', '')
@@ -49,7 +56,8 @@ def add_object():
     data = request.json
     cursor.execute(
         "INSERT INTO objects(name, description, quantity, category, subcategory, stored_in) VALUES (?, ?, ?, ?, ?, ?)",
-        (data['nombre'], data['descripcion'], data['cantidad'], data['categoria'], data['subcategoria'], data['almacenado_en'])
+        (data['nombre'], data['descripcion'], data['cantidad'],
+         data['categoria'], data['subcategoria'], data['almacenado_en'])
     )
     conn.commit()
     return jsonify({'id': cursor.lastrowid}), 201
@@ -59,7 +67,8 @@ def update_object(obj_id):
     data = request.json
     cursor.execute(
         "UPDATE objects SET name=?, description=?, quantity=?, category=?, subcategory=?, stored_in=? WHERE id=?",
-        (data['nombre'], data['descripcion'], data['cantidad'], data['categoria'], data['subcategoria'], data['almacenado_en'], obj_id)
+        (data['nombre'], data['descripcion'], data['cantidad'],
+         data['categoria'], data['subcategoria'], data['almacenado_en'], obj_id)
     )
     conn.commit()
     return ('', 204)
@@ -70,7 +79,10 @@ def delete_object(obj_id):
     conn.commit()
     return ('', 204)
 
+
+# ----------------------------
 # API Contenedores
+# ----------------------------
 @app.route('/api/containers', methods=['GET'])
 def list_containers():
     q = request.args.get('q', '')
@@ -113,15 +125,15 @@ def delete_container(cont_id):
     conn.commit()
     return ('', 204)
 
+
+# ----------------------------
 # Ruta front-end
-def index():
-    return render_template('index.html')
-
+# ----------------------------
 @app.route('/', methods=['GET'])
-# Muestra la plantilla principal
-
 def index():
     return render_template('index.html')
+
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000)
+    # En desarrollo, debug activa recarga y mensajes de error explícitos
+    app.run(host='0.0.0.0', port=8000, debug=True)
