@@ -15,16 +15,6 @@ conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 conn.row_factory = sqlite3.Row
 cursor = conn.cursor()
 
-
-# asegurar CORS también en errores
-@app.after_request
-def ensure_cors(response):
-    if request.path.startswith('/api/'):
-        response.headers.setdefault('Access-Control-Allow-Origin', '*')
-        response.headers.setdefault('Access-Control-Allow-Headers', 'Authorization,Content-Type')
-        response.headers.setdefault('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-    return response
-
 # 2) Autenticación global para /api/*
 @app.before_request
 def require_bearer_auth():
