@@ -1,110 +1,101 @@
-from flask import Flask, jsonify, request, render_template, send_from_directory
+from flask import Flask, jsonify, request, render_template
 import sqlite3
 import os
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
-DB_PATH = os.getenv('DB_PATH', '/app/data/db.sqlite')
+DB_PATH = os.environ.get('DB_PATH', '/app/data/db.sqlite')
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+conn.row_factory = sqlite3.Row
+cursor = conn.cursor()
 
-# Helper para conexión
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# Rutas de API para objetos
+# API Objetos
 @app.route('/api/objects', methods=['GET'])
 def list_objects():
     q = request.args.get('q', '')
-    db = get_db()
-    sql = "SELECT * FROM objects"
-    params = ()
     if q:
-        sql += " WHERE name LIKE ? OR description LIKE ? OR category LIKE ? OR subcategory LIKE ?"
-        term = f"%{q}%"
-        params = (term, term, term, term)
-    items = db.execute(sql, params).fetchall()
-    return jsonify([dict(ix) for ix in items])
+        cursor.execute("SELECT * FROM object WHERE nombre LIKE ?", ('%' + q + '%',))
+    else:
+        cursor.execute("SELECT * FROM object")
+    return jsonify([dict(r) for r in cursor.fetchall()])
 
-@app.route('/api/objects/<int:item_id>', methods=['GET'])
-def get_object(item_id):
-    db = get_db()
-    row = db.execute("SELECT * FROM objects WHERE id = ?", (item_id,)).fetchone()
-    return jsonify(dict(row)) if row else ('', 404)
+@app.route('/api/objects/<int:obj_id>', methods=['GET'])
+def get_object(obj_id):
+    cursor.execute("SELECT * FROM object WHERE id = ?", (obj_id,))
+    r = cursor.fetchone()
+    return jsonify(dict(r)) if r else ('', 404)
 
 @app.route('/api/objects', methods=['POST'])
-def create_object():
+def add_object():
     data = request.json
-    db = get_db()
-    cur = db.execute(
-        "INSERT INTO objects (name, description, quantity, category, subcategory, stored_in) VALUES (?,?,?,?,?,?)",
-        (data['name'], data['description'], data['quantity'], data['category'], data['subcategory'], data['stored_in'])
+    cursor.execute(
+        "INSERT INTO object(nombre, descripcion, cantidad, categoria, subcategoria, almacenado_en) VALUES (?, ?, ?, ?, ?, ?)",
+        (data['nombre'], data['descripcion'], data['cantidad'], data['categoria'], data['subcategoria'], data['almacenado_en'])
     )
-    db.commit()
-    return jsonify({'id': cur.lastrowid}), 201
+    conn.commit()
+    return jsonify({'id': cursor.lastrowid}), 201
 
-@app.route('/api/objects/<int:item_id>', methods=['PUT'])
-def update_object(item_id):
+@app.route('/api/objects/<int:obj_id>', methods=['PUT'])
+def update_object(obj_id):
     data = request.json
-    db = get_db()
-    db.execute(
-        "UPDATE objects SET name=?, description=?, quantity=?, category=?, subcategory=?, stored_in=? WHERE id=?",
-        (data['name'], data['description'], data['quantity'], data['category'], data['subcategory'], data['stored_in'], item_id)
+    cursor.execute(
+        "UPDATE object SET nombre=?, descripcion=?, cantidad=?, categoria=?, subcategoria=?, almacenado_en=? WHERE id=?",
+        (data['nombre'], data['descripcion'], data['cantidad'], data['categoria'], data['subcategoria'], data['almacenado_en'], obj_id)
     )
-    db.commit()
+    conn.commit()
     return ('', 204)
 
-# Rutas de API para contenedores
+@app.route('/api/objects/<int:obj_id>', methods=['DELETE'])
+def delete_object(obj_id):
+    cursor.execute("DELETE FROM object WHERE id=?", (obj_id,))
+    conn.commit()
+    return ('', 204)
+
+# API Contenedores
 @app.route('/api/containers', methods=['GET'])
 def list_containers():
     q = request.args.get('q', '')
-    db = get_db()
-    sql = "SELECT * FROM containers"
-    params = ()
     if q:
-        sql += " WHERE name LIKE ? OR description LIKE ?"
-        term = f"%{q}%"
-        params = (term, term)
-    rows = db.execute(sql, params).fetchall()
-    return jsonify([dict(ix) for ix in rows])
+        cursor.execute("SELECT * FROM container WHERE nombre LIKE ?", ('%' + q + '%',))
+    else:
+        cursor.execute("SELECT * FROM container")
+    return jsonify([dict(r) for r in cursor.fetchall()])
 
 @app.route('/api/containers/<int:cont_id>', methods=['GET'])
 def get_container(cont_id):
-    db = get_db()
-    row = db.execute("SELECT * FROM containers WHERE id = ?", (cont_id,)).fetchone()
-    return jsonify(dict(row)) if row else ('', 404)
+    cursor.execute("SELECT * FROM container WHERE id = ?", (cont_id,))
+    r = cursor.fetchone()
+    return jsonify(dict(r)) if r else ('', 404)
 
 @app.route('/api/containers', methods=['POST'])
-def create_container():
+def add_container():
     data = request.json
-    db = get_db()
-    cur = db.execute(
-        "INSERT INTO containers (name, description) VALUES (?,?)",
-        (data['name'], data['description'])
+    cursor.execute(
+        "INSERT INTO container(nombre, descripcion) VALUES (?, ?)",
+        (data['nombre'], data['descripcion'])
     )
-    db.commit()
-    return jsonify({'id': cur.lastrowid}), 201
+    conn.commit()
+    return jsonify({'id': cursor.lastrowid}), 201
 
 @app.route('/api/containers/<int:cont_id>', methods=['PUT'])
 def update_container(cont_id):
     data = request.json
-    db = get_db()
-    db.execute(
-        "UPDATE containers SET name=?, description=? WHERE id=?",
-        (data['name'], data['description'], cont_id)
+    cursor.execute(
+        "UPDATE container SET nombre=?, descripcion=? WHERE id=?",
+        (data['nombre'], data['descripcion'], cont_id)
     )
-    db.commit()
+    conn.commit()
     return ('', 204)
 
-# Rutas para servir front-end
-@app.route('/')
-def root_redirect():
-    return render_template('objects_list.html')
+@app.route('/api/containers/<int:cont_id>', methods=['DELETE'])
+def delete_container(cont_id):
+    cursor.execute("DELETE FROM container WHERE id=?", (cont_id,))
+    conn.commit()
+    return ('', 204)
 
-@app.route('/<path:filename>')
-def serve_file(filename):
-    if filename.startswith('static/'):
-        return send_from_directory('.', filename)
-    return render_template(filename)
+# Front-end route
+@app.route('/', methods=['GET'])
+def index():
+    return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=8000)

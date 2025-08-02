@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inventario de Casa</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+
+<body>
+    <header>
+        <h1 id="title">Objetos</h1>
+        <button id="btn-toggle">Ver Contenedores</button>
+    </header>
+    <input type="text" id="search" placeholder="Buscar..." />
+
+    <ul id="list"></ul>
+
+    <button id="btn-add">+</button>
+
+    <div id="form">
+        <h2 id="form-title">Formulario</h2>
+        <input type="text" id="nombre" placeholder="Nombre" />
+        <textarea id="descripcion" placeholder="Descripción"></textarea>
+        <input type="number" id="cantidad" placeholder="Cantidad" />
+        <input type="text" id="categoria" placeholder="Categoría" />
+        <input type="text" id="subcategoria" placeholder="Subcategoría" />
+        <input type="text" id="almacenado_en" placeholder="Almacenado en (separar por ,)" />
+        <div class="form-buttons">
+            <button id="submit">Crear</button>
+            <button id="delete">Eliminar</button>
+            <button id="close">Cancelar</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+
+</html>
