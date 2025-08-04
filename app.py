@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
+from rapidfuzz import fuzz
 import sqlite3, os
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
@@ -56,14 +57,39 @@ def map_container_row(r):
 # API Objetos
 # ----------------------------
 @app.route('/api/objects', methods=['GET'])
-def list_objects():
-    q = request.args.get('q', '')
+def list_objects_pyfuzzy():
+    app.logger.info("Hdefaef")
+    app.logger.warning("Hdefaef")
+    app.logger.debug("Hdefaef")
+    app.logger.error("Hdefaef")
+    q = request.args.get('q', '').strip().lower()
+    # 1) primer pas: LIKE simplificat (sense accents, prefiltre)
+    cursor.execute("""
+      SELECT * FROM objects 
+    """)
+    candidates = cursor.fetchall()
     if q:
-        cursor.execute("SELECT * FROM objects WHERE name LIKE ?", ('%' + q + '%',))
+        print("")
     else:
-        cursor.execute("SELECT * FROM objects")
-    rows = cursor.fetchall()
-    return jsonify([map_object_row(r) for r in rows])
+        return jsonify([map_object_row(c) for c in candidates])
+
+    results = []
+    for r in candidates:
+        words = q.lower().split(" ")
+        scores = [];
+        mean = 0.0;
+            #print(r['name'])
+        for w in words:
+            score = fuzz.partial_ratio(r['name'].lower(), w)
+            #print(f"score for {w} {score}")
+            scores.append(score)
+            mean += score
+        mean = mean / len(scores)
+        if mean > 60.0:   # llindar, p.ex. 70%
+            results.append((r, mean))
+# ordenar per millor puntuació
+    results.sort(key=lambda x: x[1], reverse=True)
+    return jsonify([map_object_row(r) for r, _ in results])
 
 @app.route('/api/objects/<int:obj_id>', methods=['GET'])
 def get_object(obj_id):
